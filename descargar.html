@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Protur Roquetas — Descargar Documento</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Arial', sans-serif;
+    background: #0a1628;
+    color: #f0f4fa;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .box {
+    background: rgba(15,31,61,0.95);
+    border: 1px solid rgba(0,196,212,0.25);
+    border-radius: 14px;
+    padding: 48px 44px;
+    max-width: 460px;
+    width: 95vw;
+    text-align: center;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+  }
+  .hotel { font-size: 13px; color: #00c4d4; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px; }
+  .stars { color: #f0c040; font-size: 16px; margin-bottom: 20px; display: block; }
+  .icon { font-size: 52px; margin-bottom: 16px; display: block; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+  .desc { font-size: 13px; color: #8899b0; margin-bottom: 28px; line-height: 1.6; }
+  .meta {
+    background: rgba(0,196,212,0.07);
+    border: 1px solid rgba(0,196,212,0.2);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    text-align: left;
+    font-size: 13px;
+  }
+  .meta-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .meta-row:last-child { border-bottom: none; }
+  .meta-label { color: #8899b0; }
+  .meta-value { color: #fff; font-weight: 600; }
+  .btn {
+    display: inline-block;
+    background: linear-gradient(135deg, #00c4d4, #007fa0);
+    color: #0a1628;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 32px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity 0.2s, transform 0.1s;
+    width: 100%;
+  }
+  .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .status { margin-top: 16px; font-size: 12px; color: #8899b0; min-height: 20px; }
+  .status.ok { color: #22c96a; }
+  .status.err { color: #e84040; }
+  .footer { margin-top: 28px; font-size: 10px; color: #3a4a5e; letter-spacing: 1px; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,196,212,0.3); border-top-color: #00c4d4; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="hotel">Protur Roquetas Hotel &amp; Spa</div>
+  <span class="stars">★★★★★</span>
+  <span class="icon" id="icon">📄</span>
+  <h1 id="title">Cargando documento...</h1>
+  <p class="desc" id="desc">Preparando el documento para descarga.</p>
+  <div class="meta" id="metaBox" style="display:none;"></div>
+  <button class="btn" id="btnDownload" onclick="doDownload()" disabled>
+    ⬇ Descargar PDF
+  </button>
+  <div class="status" id="status"></div>
+  <div class="footer">Generado automáticamente · App Socorristas · Protur Roquetas</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// ── Parse URL params ──────────────────────────────────────
+const params = new URLSearchParams(window.location.search);
+const type = params.get('type'); // 'pool' or 'parte'
+let data = null;
+
+try {
+  const raw = params.get('d');
+  if (raw) data = JSON.parse(decodeURIComponent(raw));
+} catch(e) {
+  document.getElementById('title').textContent = 'Enlace no válido';
+  document.getElementById('desc').textContent = 'Los datos del documento no se pudieron leer. Contacta con el socorrista.';
+  document.getElementById('icon').textContent = '⚠️';
+}
+
+if (data) {
+  if (type === 'pool') initPool();
+  else if (type === 'parte') initParte();
+}
+
+// ── POOL ─────────────────────────────────────────────────
+function initPool() {
+  const fechaDisplay = data.fecha ? data.fecha.split('-').reverse().join('/') : '—';
+  document.getElementById('icon').textContent = '🏊';
+  document.getElementById('title').textContent = 'Registro de Piscinas';
+  document.getElementById('desc').textContent = 'Haz clic en el botón para descargar el registro oficial de mediciones en formato PDF, listo para imprimir y colgar en el tablón.';
+  document.getElementById('metaBox').style.display = 'block';
+  document.getElementById('metaBox').innerHTML = `
+    <div class="meta-row"><span class="meta-label">Fecha</span><span class="meta-value">${fechaDisplay}</span></div>
+    <div class="meta-row"><span class="meta-label">Turno</span><span class="meta-value">${data.turno || '—'}</span></div>
+    <div class="meta-row"><span class="meta-label">Socorrista</span><span class="meta-value">${data.socorrista || '—'}</span></div>
+    <div class="meta-row"><span class="meta-label">Instalaciones</span><span class="meta-value">7 piscinas</span></div>
+  `;
+  document.getElementById('btnDownload').disabled = false;
+  document.getElementById('btnDownload').textContent = '⬇ Descargar PDF — Registro Piscinas';
+}
+
+function initParte() {
+  const fechaDisplay = data.fecha ? data.fecha.split('-').reverse().join('/') : '—';
+  document.getElementById('icon').textContent = '🩺';
+  document.getElementById('title').textContent = 'Parte de Asistencia al Bañista';
+  document.getElementById('desc').textContent = 'Haz clic en el botón para descargar el parte de asistencia médica en formato PDF.';
+  document.getElementById('metaBox').style.display = 'block';
+  const calificacion = data.calificacion || '—';
+  const badgeColor = calificacion.includes('Importante') || calificacion.includes('Grave') ? '#e84040' :
+    calificacion.includes('Leve') ? '#f0c040' : '#22c96a';
+  document.getElementById('metaBox').innerHTML = `
+    <div class="meta-row"><span class="meta-label">Fecha / Hora</span><span class="meta-value">${fechaDisplay} ${data.hora || ''}</span></div>
+    <div class="meta-row"><span class="meta-label">Bañista</span><span class="meta-value">${data.nombre || '—'}</span></div>
+    <div class="meta-row"><span class="meta-label">Habitación</span><span class="meta-value">${data.habitacion || '—'}</span></div>
+    <div class="meta-row"><span class="meta-label">Lugar</span><span class="meta-value">${data.lugar || '—'}</span></div>
+    <div class="meta-row"><span class="meta-label">Calificación</span><span class="meta-value" style="color:${badgeColor}">${calificacion}</span></div>
+    <div class="meta-row"><span class="meta-label">Socorrista</span><span class="meta-value">${data.socorrista || '—'}</span></div>
+  `;
+  document.getElementById('btnDownload').disabled = false;
+  document.getElementById('btnDownload').textContent = '⬇ Descargar PDF — Parte de Asistencia';
+}
+
+// ── DOWNLOAD DISPATCH ─────────────────────────────────────
+function doDownload() {
+  const btn = document.getElementById('btnDownload');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Generando PDF...';
+  status.className = 'status';
+  status.textContent = '';
+  try {
+    if (type === 'pool') generatePoolPDF(data);
+    else if (type === 'parte') generatePartePDF(data);
+    status.className = 'status ok';
+    status.textContent = '✅ PDF descargado correctamente';
+    btn.innerHTML = '✅ Descargado';
+  } catch(e) {
+    status.className = 'status err';
+    status.textContent = '⚠ Error al generar el PDF: ' + e.message;
+    btn.disabled = false;
+    btn.innerHTML = '⬇ Reintentar';
+  }
+}
+
+// ── HELPERS PDF ───────────────────────────────────────────
+function safe(str) {
+  if (!str && str !== 0) return '';
+  return String(str)
+    .replace(/★/g,'*').replace(/°/g,'\u00b0').replace(/²/g,'2')
+    .replace(/₂/g,'2').replace(/\u2082/g,'2').replace(/CO₂/g,'CO2')
+    .replace(/–/g,'-').replace(/—/g,'-').replace(/[^\x00-\xFF]/g,'?');
+}
+
+// ── POOL PDF ──────────────────────────────────────────────
+function generatePoolPDF(data) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+  const W=297,H=210,ml=7,mr=7,mt=7,pw=W-ml-mr;
+  const sf=(sz,st='normal')=>{doc.setFontSize(sz);doc.setFont('helvetica',st);};
+  const sc=(r,g,b)=>doc.setTextColor(r,g,b);
+  const sfc=(r,g,b)=>doc.setFillColor(r,g,b);
+  const sdc=(r,g,b)=>doc.setDrawColor(r,g,b);
+  const slw=(w)=>doc.setLineWidth(w);
+  const BG_DARK=[50,50,50],BG_MID=[130,130,130],BG_LIGHT=[200,200,200];
+  const BG_ALT=[242,242,242],BG_WHITE=[255,255,255],BG_NA=[220,220,220];
+  const TXT_WHITE=[255,255,255],TXT_DARK=[20,20,20],TXT_MID=[70,70,70],TXT_LIGHT=[100,100,100],BORDER=[80,80,80];
+
+  sfc(...BG_DARK);doc.rect(ml,mt,pw,9,'F');
+  sf(10,'bold');sc(...TXT_WHITE);doc.text(safe('Protur Roquetas Hotel & Spa  *****'),ml+3,mt+5.8);
+  sf(13,'bold');sc(...TXT_WHITE);doc.text('Registro diario de piscinas',W/2,mt+5.8,{align:'center'});
+  sf(8,'normal');sc(...TXT_WHITE);
+  const fd=data.fecha?data.fecha.split('-').reverse().join('/'):'__/__/____';
+  doc.text(safe('Fecha: '+fd),W-mr-2,mt+3.5,{align:'right'});
+  doc.text(safe('Turno: '+data.turno+'   Socorrista: '+data.socorrista),W-mr-2,mt+7.8,{align:'right'});
+
+  const tableTop=mt+11;
+  const lrw=34,liw=20;
+  const pd=[
+    {name:'Rio Rafting',subs:['Exterior'],w:22},{name:'Pisc. Juegos',subs:['Exterior'],w:22},
+    {name:'Pisc. Playa',subs:['Exterior'],w:22},{name:'Infantil peq.',subs:['Exterior'],w:22},
+    {name:'Splash',subs:['Exterior'],w:22},{name:'Climatizada',subs:['Interior','Exterior'],w:30},
+    {name:'Spa',subs:['Circuito','Pileta Fija'],w:28},
+  ];
+  const rt=lrw+liw+pd.reduce((s,c)=>s+c.w,0);const sc2=pw/rt;
+  const lW=lrw*sc2,liW=liw*sc2;pd.forEach(p=>{p.w=p.w*sc2;});
+  const cols=[];let cx=ml+lW+liW;
+  pd.forEach((pool,pi)=>{const sw=pool.w/pool.subs.length;pool.subs.forEach((sub,si)=>{cols.push({x:cx,w:sw,pi,si});cx+=sw;});});
+  const rows=[
+    {key:'cloro',label:'CLORO LIBRE',limit:'CITRICOS\nsegun tipo\ndesinfect.',rh:13,unit:'PPM'},
+    {key:'clorocomb',label:'CLORO COMBINADO',limit:'< 0,6 PPM',rh:9,unit:''},
+    {key:'ph',label:'PH',limit:'7,2 - 7,8',rh:9,unit:''},
+    {key:'trans',label:'TRANSPARENCIA',limit:'Buena',rh:9,unit:''},
+    {key:'turbidez',label:'TURBIDEZ',limit:'UNF',rh:8,unit:''},
+    {key:'recirc',label:'TIEMPO DE RECIRCULACION (H.)',limit:'segun\npiscina',rh:9,unit:''},
+    {key:'taire',label:'T. AIRE (P. CLIMATIZ.)',limit:'1-2\u00b0C >\nT.Agua\nDifer.',rh:12,unit:''},
+    {key:'tagua_clima',label:'T. AGUA (P. CLIMATIZ.)',limit:'24-30\u00b0',rh:9,unit:''},
+    {key:'co2int',label:'NIVEL CO2 (INT. RECINTO)',limit:'No Super.\n500 Ppm',rh:9,unit:''},
+    {key:'co2ext',label:'NIVEL CO2 (EXT. RECINTO)',limit:'',rh:8,unit:''},
+    {key:'humedad',label:'HUMEDAD RELATIVA\n(INTERIOR RECINTO)',limit:'< 65%',rh:10,unit:''},
+  ];
+  const pids=['rio_rafting','juegos','playa','infantil','splash','climatizada','spa'];
+  const intRows=['taire','tagua_clima','co2int','co2ext','humedad'];
+  function gcv(key,col){
+    const pid=pids[col.pi];const pm=(data.measurements&&data.measurements[pid])||{};const inn=data.interior||{};
+    if(intRows.includes(key)){if(col.pi<5)return null;
+      if(key==='taire')return inn.taire||'';if(key==='tagua_clima')return col.pi===5?(inn.tagua_clima||''):'';
+      if(key==='co2int')return inn.co2int||'';if(key==='co2ext')return inn.co2ext||'';if(key==='humedad')return inn.humedad||'';}
+    if(key==='tagua_clima'&&col.pi===5)return col.si===0?(inn.tagua_clima||''):(pm.tagua||'');
+    if(key==='tagua_clima'&&col.pi===6)return col.si===0?(inn.spa_int||''):(inn.spa_ext||'');
+    if(key==='cloro')return pm.cloro||'';if(key==='clorocomb')return pm.clorocomb||'';
+    if(key==='ph')return pm.ph||'';if(key==='trans')return pm.trans||'';
+    if(key==='turbidez')return pm.turbidez||'';if(key==='recirc')return pm.recirc||'';return'';}
+
+  slw(0.2);sdc(...BORDER);let y=tableTop;const rh1=6,rh2=5;
+  sfc(...BG_MID);doc.rect(ml,y,lW+liW,rh1+rh2,'F');sf(5.5,'bold');sc(...TXT_WHITE);
+  doc.text('INSTALACION',ml+(lW+liW)/2,y+(rh1+rh2)/2+1.5,{align:'center'});
+  let px=ml+lW+liW;
+  pd.forEach(pool=>{sfc(...BG_MID);doc.rect(px,y,pool.w,rh1,'F');sf(5.5,'bold');sc(...TXT_WHITE);
+    doc.text(safe(pool.name),px+pool.w/2,y+rh1/2+1.8,{align:'center'});
+    const sw=pool.w/pool.subs.length;pool.subs.forEach((sub,si)=>{sfc(...BG_LIGHT);
+      doc.rect(px+si*sw,y+rh1,sw,rh2,'F');sf(4.2,'normal');sc(...TXT_DARK);
+      doc.text(safe(sub),px+si*sw+sw/2,y+rh1+rh2/2+1.4,{align:'center'});});px+=pool.w;});
+  doc.rect(ml,y,pw,rh1+rh2,'S');let vx=ml+lW;doc.line(vx,y,vx,y+rh1+rh2);vx+=liW;
+  pd.forEach(pool=>{doc.line(vx,y,vx,y+rh1+rh2);if(pool.subs.length>1){const sw=pool.w/pool.subs.length;doc.line(vx+sw,y+rh1,vx+sw,y+rh1+rh2);}vx+=pool.w;});
+  doc.line(ml+lW+liW,y+rh1,ml+pw,y+rh1);y+=rh1+rh2;
+
+  rows.forEach((row,ri)=>{const isAlt=ri%2===1;
+    sfc(...(isAlt?BG_ALT:BG_WHITE));doc.rect(ml,y,lW,row.rh,'F');sf(5.0,'bold');sc(...TXT_DARK);
+    const ll=row.label.split('\n');const ls=3.6;const ly=y+row.rh/2-((ll.length-1)*ls)/2+1.2;
+    ll.forEach((l,i)=>doc.text(safe(l),ml+lW/2,ly+i*ls,{align:'center'}));
+    if(row.unit){sf(4.0,'italic');sc(...TXT_LIGHT);doc.text(row.unit,ml+lW/2,ly+ll.length*ls,{align:'center'});}
+    sfc(...BG_LIGHT);doc.rect(ml+lW,y,liW,row.rh,'F');sf(4.2,'normal');sc(...TXT_DARK);
+    const rl=row.limit.split('\n');const rs=3.4;const ry=y+row.rh/2-((rl.length-1)*rs)/2+1.2;
+    rl.forEach((l,i)=>doc.text(safe(l),ml+lW+liW/2,ry+i*rs,{align:'center'}));
+    cols.forEach(col=>{const val=gcv(row.key,col);const isNA=val===null;
+      sfc(...(isNA?BG_NA:(isAlt?BG_ALT:BG_WHITE)));doc.rect(col.x,y,col.w,row.rh,'F');
+      if(!isNA&&val!==''){sf(6.5,'bold');sc(...TXT_DARK);doc.text(safe(String(val)),col.x+col.w/2,y+row.rh/2+1.8,{align:'center'});}});
+    doc.rect(ml,y,pw,row.rh,'S');let rv=ml+lW;doc.line(rv,y,rv,y+row.rh);rv+=liW;
+    pd.forEach(pool=>{doc.line(rv,y,rv,y+row.rh);if(pool.subs.length>1){const sw=pool.w/pool.subs.length;doc.line(rv+sw,y,rv+sw,y+row.rh);}rv+=pool.w;});
+    y+=row.rh;});
+
+  y+=3.5;sf(5.5,'normal');sc(...TXT_DARK);
+  const hc=data.tratamientos&&data.tratamientos.includes('Hipoclorito')?'[X]':'[ ]';
+  const tc=data.tratamientos&&data.tratamientos.some(t=>t.toLowerCase().includes('tricloro')||t.toLowerCase().includes('triclo'))?'[X]':'[ ]';
+  doc.text(safe('Informacion tratamiento:   Hipoclorito: '+hc+'   Derivados ac. Tricloroisocianurico: '+tc),ml,y);
+  if(data.obs&&data.obs.trim()){y+=5;sf(5.2,'normal');sc(...TXT_MID);doc.text(doc.splitTextToSize(safe('Observaciones: '+data.obs),pw-60),ml,y);}
+  const sx=W-mr-55,sy=H-15;sdc(...TXT_MID);slw(0.3);doc.line(sx,sy,W-mr,sy);
+  sf(4.8,'normal');sc(...TXT_MID);doc.text('Firma del socorrista',sx+27.5,sy+3.5,{align:'center'});
+  sf(5.5,'bold');sc(...TXT_DARK);doc.text(safe(data.socorrista),sx+27.5,sy+7.5,{align:'center'});
+  slw(0.5);sdc(...BORDER);doc.rect(3.5,3.5,W-7,H-7,'S');
+  doc.save(safe('RegistroPiscinas_'+data.fecha+'_'+data.turno+'.pdf'));
+}
+
+// ── PARTE PDF ─────────────────────────────────────────────
+function generatePartePDF(data) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const W=210,H=297,ml=12,mr=12,mt=10,pw=W-ml-mr;
+  const sf=(sz,st='normal')=>{doc.setFontSize(sz);doc.setFont('helvetica',st);};
+  const sc=(r,g,b)=>doc.setTextColor(r,g,b);
+  const sfc=(r,g,b)=>doc.setFillColor(r,g,b);
+  const sdc=(r,g,b)=>doc.setDrawColor(r,g,b);
+  const slw=(w)=>doc.setLineWidth(w);
+  const BG=[50,50,50],BG2=[130,130,130],BG3=[200,200,200],BG4=[242,242,242];
+  const TW=[255,255,255],TD=[20,20,20],TM=[80,80,80],TL=[120,120,120];
+  const BD=[80,80,80];
+
+  // Header
+  sfc(...BG);doc.rect(ml,mt,pw,10,'F');
+  sf(11,'bold');sc(...TW);doc.text(safe('Protur Roquetas Hotel & Spa  *****'),ml+3,mt+4.5);
+  sf(8,'normal');sc(...TW);doc.text('FICHA DE ASISTENCIA AL BANISTA',W/2,mt+4.5,{align:'center'});
+  sf(7,'normal');sc(...TW);
+  const fd=data.fecha?data.fecha.split('-').reverse().join('/'):'__/__/____';
+  doc.text(safe('Fecha: '+fd+'  Hora: '+(data.hora||'')),W-mr-2,mt+4.5,{align:'right'});
+  doc.text(safe('Socorrista: '+data.socorrista),W-mr-2,mt+8.5,{align:'right'});
+
+  slw(0.2);sdc(...BD);
+  let y=mt+14;
+
+  // Section helper
+  function section(title) {
+    sfc(...BG2);doc.rect(ml,y,pw,6,'F');sf(6,'bold');sc(...TW);
+    doc.text(title,ml+2,y+4);y+=8;
+  }
+  function row2(label,val,label2,val2) {
+    sf(5.5,'bold');sc(...TL);doc.text(safe(label),ml+2,y+3.5);
+    sf(6,'normal');sc(...TD);doc.text(safe(String(val||'—')),ml+2+35,y+3.5);
+    if(label2!==undefined){sf(5.5,'bold');sc(...TL);doc.text(safe(label2),W/2,y+3.5);
+      sf(6,'normal');sc(...TD);doc.text(safe(String(val2||'—')),W/2+30,y+3.5);}
+    slw(0.1);sdc(220,220,220);doc.line(ml,y+6,ml+pw,y+6);y+=7;
+  }
+  function checkList(items,selected,cols=2) {
+    const colW=pw/cols;const itemH=6;
+    items.forEach((item,i)=>{
+      const col=i%cols;const row=Math.floor(i/cols);
+      const x=ml+col*colW;const iy=y+row*itemH;
+      const checked=selected&&selected.includes(item);
+      sfc(...(checked?BG:[255,255,255]));
+      doc.rect(x,iy,colW-2,itemH-1,checked?'F':'S');
+      if(checked){sf(6,'bold');sc(...TW);}else{sf(6,'normal');sc(...TD);}
+      doc.text((checked?'[X] ':'[ ] ')+safe(item),x+2,iy+3.8);
+    });
+    const totalRows=Math.ceil(items.length/cols);
+    y+=totalRows*itemH+3;
+  }
+
+  // Lugar de asistencia
+  section('LUGAR DE ASISTENCIA — POINT OF CARE');
+  const lugares=['Pisc. Rafting','Pisc. Juegos','Pisc. Playa','Pisc. Infantil','Spa','Pisc. Climatizada','Splash'];
+  checkList(lugares,[data.lugar],4);
+
+  // Datos bañista
+  section('DATOS DEL BANISTA — SWIMMER INFORMATION');
+  row2('Nombre / Name:',data.nombre,'Edad / Age:',data.edad);
+  row2('Sexo / Sex:',data.sexo,'Habitacion / Room:',data.habitacion);
+  row2('Nacionalidad:',data.nacionalidad,'Observaciones:',data.obs_banista);
+  y+=2;
+
+  // Tipo de lesión
+  section('TIPO DE LESION — INJURY TYPE');
+  const lesiones=['Traumatismo','Herida/Herida abierta','Hemorragias','Urticarias/Rash','T.C.E.','Cuerpos extraños','Picadura/Mordedura','Perdida conocimiento','Quemadura/Burn','Erosiones/Sunburn','Muscular','Articular/Joint','Fractura','Esguince/Sprain','Luxacion/Disjointed','Contusion','Enfermedad','Otros'];
+  checkList(lesiones,data.lesiones,3);
+
+  // Zona anatómica
+  section('ZONA ANATOMICA — AREA');
+  const zonas=['Pies/Feet','Ext. Sup./Low Ex.','Manos/Hands','Ext. Inferior/Fracture','Esguince/Up ex.','Tronco/Body','Nariz/Nose','Boca/Mouth','Cabeza/Head','Piernas','Otros/Others'];
+  checkList(zonas,data.zonas,3);
+
+  // Actuación
+  section('ACTUACION DEL SOS — TREATMENT');
+  const acts=['Rescate/Rescue','Cura de Emergencia','Exploracion/Check up','Traslado/Transport','Vendaje/Bandage','Cura normal/Standard aid','Traslado urgente','Inmovilizacion','RCP/CPR'];
+  checkList(acts,data.actuaciones,3);
+
+  // Calificación
+  section('CALIFICACION DEL ACCIDENTE — TYPE OF ACCIDENT');
+  const califs=['Sin importancia/Minor','Leve/Mild','Importante/Serious','Grave/Dead serious','Muerte/Death'];
+  checkList(califs,[data.calificacion],3);
+
+  // Notas
+  section('NOTAS DEL ACCIDENTE Y MATERIAL UTILIZADO');
+  if(data.notas){sf(6,'normal');sc(...TD);const lines=doc.splitTextToSize(safe(data.notas),pw-4);doc.text(lines,ml+2,y);y+=lines.length*4+4;}
+  else{y+=6;}
+
+  if(data.recomendaciones){
+    section('RECOMENDACIONES');
+    sf(6,'normal');sc(...TD);const lines=doc.splitTextToSize(safe(data.recomendaciones),pw-4);doc.text(lines,ml+2,y);y+=lines.length*4+4;
+  }
+
+  // Firma
+  y=Math.max(y+10, H-35);
+  slw(0.3);sdc(...TM);doc.line(ml,y,ml+60,y);doc.line(W-mr-60,y,W-mr,y);
+  sf(5,'normal');sc(...TM);
+  doc.text('Firma Direccion del Hotel',ml+30,y+4,{align:'center'});
+  doc.text('Firma del Socorrista',W-mr-30,y+4,{align:'center'});
+  sf(5.5,'bold');sc(...TD);doc.text(safe(data.socorrista),W-mr-30,y+9,{align:'center'});
+
+  // Border
+  slw(0.5);sdc(...BD);doc.rect(3.5,3.5,W-7,H-7,'S');
+
+  doc.save(safe('ParteAsistencia_'+data.fecha+'_Hab'+data.habitacion+'_'+data.nombre+'.pdf'));
+}
+</script>
+</body>
+</html>
